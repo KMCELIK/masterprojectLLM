@@ -16,6 +16,7 @@ import privategpt.dto.DocumentSoll;
 import privategpt.dto.Order;
 import privategpt.process.InvoiceMapper;
 import privategpt.process.PrivateGptRequestingProcess;
+import privategpt.process.SimilarityCalculationProcess;
 import privategpt.reader.OcrReader;
 
 public class PrivateGptRequestExecutor {
@@ -65,20 +66,43 @@ public class PrivateGptRequestExecutor {
 				 */
 				int gesamt = 10; // es gibt 10 Vergleichspunkte:
 				int evalCorrect = 0;
+				double mindestWert = 0.7;
 				DocumentSoll soll = documentSollMap.get(eval.getPath());
-				
+
 				if (soll == null || soll.equals(null)) {
-					return; 
+					return;
 				}
-				
+
 				Order sollOrder = InvoiceMapper.mapJsonToInvoice(soll.getSollJson());
 
 				// evaluation
 				if (eval.getOrder() != null) {
 
-					if (sollOrder.getItems().equals(eval.getOrder().getItems()))
+					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getItems().toString(),
+							eval.getOrder().getItems().toString()) > mindestWert)
 						evalCorrect += 1;
 
+					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getSeller(),
+							eval.getOrder().getSeller()) > mindestWert)
+						evalCorrect += 1;
+					
+					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getBillingAddress().toString(),
+							eval.getOrder().getBillingAddress().toString()) > mindestWert)
+						evalCorrect += 1;
+					
+					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getDeliveryAddress().toString(),
+							eval.getOrder().getDeliveryAddress().toString()) > mindestWert)
+						evalCorrect += 1;
+
+					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getHandler(),
+							eval.getOrder().getHandler()) > mindestWert)
+						evalCorrect += 1;
+
+					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getPaymentTerms(),
+							eval.getOrder().getPaymentTerms()) > mindestWert)
+						evalCorrect += 1;
+
+					// Numbers
 					if (sollOrder.getOrderNumber().equals(eval.getOrder().getOrderNumber()))
 						evalCorrect += 1;
 
@@ -88,33 +112,17 @@ public class PrivateGptRequestExecutor {
 					if (sollOrder.getNetAmount() == eval.getOrder().getNetAmount())
 						evalCorrect += 1;
 
-					if (sollOrder.getSeller().equals(eval.getOrder().getSeller()))
-						evalCorrect += 1;
-
-					if (sollOrder.getHandler().equals(eval.getOrder().getHandler()))
-						evalCorrect += 1;
-
-					if (sollOrder.getItems().equals(eval.getOrder().getItems()))
-						evalCorrect += 1;
-
-					if (sollOrder.getNetAmount() == eval.getOrder().getNetAmount())
-						evalCorrect += 1;
-
 					if (sollOrder.getTotalAmount() == eval.getOrder().getTotalAmount())
 						evalCorrect += 1;
 
-					if (sollOrder.getPaymentTerms().equals(eval.getOrder().getPaymentTerms()))
-						evalCorrect += 1;
-				
-				//
-				double percentage = (double) ((double) evalCorrect / (double) gesamt) * 100;
-				eval.setMistakes(gesamt - evalCorrect);
-				eval.setReader("ITEXTPDF");
-				eval.setSollJson(InvoiceMapper.writeOrderToJson(sollOrder));
-				eval.setIstJson(InvoiceMapper.writeOrderToJson(eval.getOrder()));
-				eval.setCorrectness(Double.valueOf(percentage).intValue());
+					double percentage = (double) ((double) evalCorrect / (double) gesamt) * 100;
+					eval.setMistakes(gesamt - evalCorrect);
+					eval.setReader("ITEXTPDF");
+					eval.setSollJson(InvoiceMapper.writeOrderToJson(sollOrder));
+					eval.setIstJson(InvoiceMapper.writeOrderToJson(eval.getOrder()));
+					eval.setCorrectness(Double.valueOf(percentage).intValue());
 
-				insertEvaluation(eval);
+					insertEvaluation(eval);
 				}
 			});
 
