@@ -8,3 +8,4 @@ masterproject-whs-llm-ocr
 JDK Version 11 müsste ausreichen RE Version 17 ebenfalls
 3. Java Code mvn install und mvn build ausführen
 4. Java Code auf die DB Connection anpassen.
+5. DB Paths in der SQL DB anpassen auf die Ressources im Maven Projekt.
