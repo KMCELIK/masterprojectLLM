@@ -1,7 +1,10 @@
 package privategpt.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Item {
 	@JsonProperty("ArtNr")
 	private String itemNumber;
@@ -13,12 +16,15 @@ public class Item {
 	private String quantity;
 
 	@JsonProperty("Stückpreis")
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	private Double unitPrice;
 
 	@JsonProperty("Rabatt")
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	private Double discount;
 
 	@JsonProperty("Betrag")
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	private Double amount;
 
 	public String getItemNumber() {
@@ -45,27 +51,27 @@ public class Item {
 		this.quantity = quantity;
 	}
 
-	public double getUnitPrice() {
+	public Double getUnitPrice() {
 		return unitPrice;
 	}
 
-	public void setUnitPrice(double unitPrice) {
+	public void setUnitPrice(Double unitPrice) {
 		this.unitPrice = unitPrice;
 	}
 
-	public double getDiscount() {
+	public Double getDiscount() {
 		return discount;
 	}
 
-	public void setDiscount(double discount) {
+	public void setDiscount(Double discount) {
 		this.discount = discount;
 	}
 
-	public double getAmount() {
+	public Double getAmount() {
 		return amount;
 	}
 
-	public void setAmount(double amount) {
+	public void setAmount(Double amount) {
 		this.amount = amount;
 	}
 

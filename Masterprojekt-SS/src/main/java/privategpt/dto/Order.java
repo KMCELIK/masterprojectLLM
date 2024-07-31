@@ -4,7 +4,9 @@ import java.util.List;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Order {
@@ -13,6 +15,7 @@ public class Order {
 	private String orderNumber;
 
 	@JsonProperty("Bestelldatum")
+	@JsonDeserialize(using = PaymentTermsDeserializer.class)
 	private String orderDate;
 
 	@JsonProperty("Verkäufer")
@@ -28,21 +31,26 @@ public class Order {
 	private Address billingAddress;
 
 	@JsonProperty("Liefertermin")
+	@JsonDeserialize(using = PaymentTermsDeserializer.class)
 	private String deliveryDate;
 
 	@JsonProperty("Artikel")
 	private List<Item> items;
 
 	@JsonProperty("Nettobetrag")
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	private Double netAmount;
 
 	@JsonProperty("USt19")
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	private Double vat19;
 
 	@JsonProperty("Gesamt")
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	private Double totalAmount;
 
 	@JsonProperty("Zahlungsbedingungen")
+	@JsonDeserialize(using = PaymentTermsDeserializer.class)
 	private String paymentTerms;
 
 	public String getOrderNumber() {
@@ -109,27 +117,27 @@ public class Order {
 		this.items = items;
 	}
 
-	public double getNetAmount() {
+	public Double getNetAmount() {
 		return netAmount;
 	}
 
-	public void setNetAmount(double netAmount) {
+	public void setNetAmount(Double netAmount) {
 		this.netAmount = netAmount;
 	}
 
-	public double getVat19() {
+	public Double getVat19() {
 		return vat19;
 	}
 
-	public void setVat19(double vat19) {
+	public void setVat19(Double vat19) {
 		this.vat19 = vat19;
 	}
 
-	public double getTotalAmount() {
+	public Double getTotalAmount() {
 		return totalAmount;
 	}
 
-	public void setTotalAmount(double totalAmount) {
+	public void setTotalAmount(Double totalAmount) {
 		this.totalAmount = totalAmount;
 	}
 

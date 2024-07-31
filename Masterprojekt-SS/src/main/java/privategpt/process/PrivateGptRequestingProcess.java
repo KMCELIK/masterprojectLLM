@@ -28,7 +28,7 @@ public class PrivateGptRequestingProcess {
 
 			String request = "Gegeben ist folgender String" + PdfFile + "Bitte erstelle eine JSON-Darstellung des Strings gemäß der TypeScript-Definition im folgenden Code interface Lieferadresse { Name: string; Strasse: string; Stadt: string; Land: string; Telefon: string;} interface Rechnungsadresse { Name: string; Strasse: string; Stadt: string; Land: string; Telefon: string; } interface Artikel { ArtNr: string; Beschreibung: string; Menge: string; Stückpreis: number; Rabatt: number; Betrag: number; } interface Auftrag { Auftragsnummer: string; Bestelldatum: string; Verkäufer: string; Bearbeiter: string; Lieferadresse: Lieferadresse; Rechnungsadresse: Rechnungsadresse; Liefertermin: string; Artikel: Artikel[]; Nettobetrag: number; USt19: number; Gesamt: number; Zahlungsbedingungen: string; } Bitte beschränke dich nur auf die TypeScript-Definition und erstelle keine Werte, die dort nicht definiert sind.";
 			Map<String, Object> messageContent = new HashMap<>();
-			messageContent.put("content", request.replaceAll("\n", " "));
+			messageContent.put("content", request.replaceAll("\\r?\\n|\\r|\\t", ""));
 
 			Map<String, Object> requestBody = new HashMap<>();
 			requestBody.put("messages", List.of(messageContent));
@@ -66,7 +66,11 @@ public class PrivateGptRequestingProcess {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
-		return jsonResponse.replace("\n", " ");
+		
+		if (jsonResponse != null) {
+			jsonResponse.replace("\n", " ");
+		}
+		
+		return jsonResponse;
 	}
 }

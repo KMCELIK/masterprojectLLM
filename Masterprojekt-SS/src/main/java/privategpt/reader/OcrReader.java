@@ -36,6 +36,8 @@ public class OcrReader {
                 }
             }
         } catch (IOException e) {
+        	// normalerweise über logger
+        	e.printStackTrace();
             return null;
         }
         return text.toString();

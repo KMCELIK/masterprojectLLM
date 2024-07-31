@@ -45,6 +45,11 @@ public class PrivateGptRequestExecutor {
 
 			invoicePaths.forEach(i -> {
 				String ocrFile = OcrReader.readPdf(i);
+				
+				if (ocrFile.equals(null)) {
+					return;
+				}
+				
 				Order order = InvoiceMapper
 						.mapJsonToInvoice(PrivateGptRequestingProcess.getPrivateGptResponseFromPdfRequest(ocrFile));
 
@@ -73,16 +78,24 @@ public class PrivateGptRequestExecutor {
 					return;
 				}
 
-				Order sollOrder = InvoiceMapper.mapJsonToInvoice(soll.getSollJson());
+				Order sollOrder = InvoiceMapper.mapJsonToInvoice(soll.getSollJson().replaceAll("\\r?\\n|\\r|\\t", "").replace("\n", ""));
 
 				// evaluation
 				if (eval.getOrder() != null) {
+					
+					if (sollOrder == null) {
+						// Fehlerfall:
+						System.out.println();
+						System.out.println("There was a error handling the order: " + eval.getOrder().getOrderNumber());
+						System.out.println();
+						return;
+					}
 
-					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getItems().toString(),
+					if (sollOrder.getItems() == null || sollOrder.getItems().isEmpty() ||  SimilarityCalculationProcess.calculateSimilarity(sollOrder.getItems().toString(),
 							eval.getOrder().getItems().toString()) > mindestWert)
 						evalCorrect += 1;
 
-					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getSeller(),
+					if (sollOrder.getSeller() == null ||  SimilarityCalculationProcess.calculateSimilarity(sollOrder.getSeller(),
 							eval.getOrder().getSeller()) > mindestWert)
 						evalCorrect += 1;
 					
@@ -94,25 +107,25 @@ public class PrivateGptRequestExecutor {
 							eval.getOrder().getDeliveryAddress().toString()) > mindestWert)
 						evalCorrect += 1;
 
-					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getHandler(),
+					if (sollOrder.getHandler() == null ||  SimilarityCalculationProcess.calculateSimilarity(sollOrder.getHandler(),
 							eval.getOrder().getHandler()) > mindestWert)
 						evalCorrect += 1;
 
-					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getPaymentTerms(),
+					if (sollOrder.getPaymentTerms() == null ||  SimilarityCalculationProcess.calculateSimilarity(sollOrder.getPaymentTerms(),
 							eval.getOrder().getPaymentTerms()) > mindestWert)
 						evalCorrect += 1;
 
 					// Numbers
-					if (sollOrder.getOrderNumber().equals(eval.getOrder().getOrderNumber()))
+					if (sollOrder.getOrderNumber() == null || sollOrder.getOrderNumber().equals(eval.getOrder().getOrderNumber()))
 						evalCorrect += 1;
 
-					if (sollOrder.getOrderDate().equals(eval.getOrder().getOrderDate()))
+					if (sollOrder.getOrderDate() == null || sollOrder.getOrderDate().equals(eval.getOrder().getOrderDate()))
 						evalCorrect += 1;
 
-					if (sollOrder.getNetAmount() == eval.getOrder().getNetAmount())
+					if (sollOrder.getNetAmount() == null || sollOrder.getNetAmount() == eval.getOrder().getNetAmount())
 						evalCorrect += 1;
 
-					if (sollOrder.getTotalAmount() == eval.getOrder().getTotalAmount())
+					if (sollOrder.getTotalAmount() == null || sollOrder.getTotalAmount() == eval.getOrder().getTotalAmount())
 						evalCorrect += 1;
 
 					double percentage = (double) ((double) evalCorrect / (double) gesamt) * 100;
@@ -123,6 +136,9 @@ public class PrivateGptRequestExecutor {
 					eval.setCorrectness(Double.valueOf(percentage).intValue());
 
 					insertEvaluation(eval);
+				} else {
+					eval.setCorrectness(0);
+					eval.setReader("ITEXTPDF");
 				}
 			});
 
