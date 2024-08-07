@@ -1,5 +1,7 @@
 # masterprojectLLM
 masterproject-whs-llm-ocr
+Es handelt sich bei diesem Projekt lediglich um ein Hochschulprojekt.
+Die Repository wird privatisiert, sobald das Projekt abgeschlossen ist.
 
 # How-To
 1. DB Skript intialisieren
