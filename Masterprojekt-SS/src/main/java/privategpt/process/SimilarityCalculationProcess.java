@@ -2,6 +2,10 @@ package privategpt.process;
 
 public class SimilarityCalculationProcess {
 	public static double calculateSimilarity(String str1, String str2) {
+		if (str2 == null) {
+			str2 = "";
+		}
+		
 		// Setzt beide Strings in Kleinbuchstaben
 		str1 = str1.toLowerCase();
 		str2 = str2.toLowerCase();

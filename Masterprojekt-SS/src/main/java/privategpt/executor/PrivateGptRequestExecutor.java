@@ -6,10 +6,12 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import privategpt.dto.DocumentEvaluation;
 import privategpt.dto.DocumentSoll;
@@ -20,178 +22,179 @@ import privategpt.process.SimilarityCalculationProcess;
 import privategpt.reader.OcrReader;
 
 public class PrivateGptRequestExecutor {
-	// hier eigene DB-Connection
-	private static final String JDBC_URL = "jdbc:mysql://localhost:3306/whs";
-	private static final String USERNAME = "root";
-	private static final String PASSWORD = "kaan1234";
+    // Datenbankverbindung
+    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/whs";
+    private static final String USERNAME = "root";
+    private static final String PASSWORD = "kaan1234"; // password und user auf sein eigenes anpassen
 
-	public static void main(String[] args) {
-		List<String> invoicePaths = new ArrayList<String>();
+    public static void main(String[] args) {
+        System.out.println("Prozessstart: " + LocalDateTime.now());
 
-		File directory = new File("C:\\Eclipse\\workspace\\Masterprojekt-SS\\src\\main\\resources\\");
-		if (directory.exists() && directory.isDirectory()) {
-			File[] files = directory.listFiles();
-			if (files != null) {
-				for (File file : files) {
-					if (file.isFile()) {
-						invoicePaths.add(file.getAbsolutePath());
-					}
-				}
-			}
+        List<String> invoicePaths = getInvoicePaths("C:\\Eclipse\\workspace\\Masterprojekt-SS\\src\\main\\resources\\");
 
-			Map<String, DocumentSoll> documentSollMap = getDocumentSollList();
-			List<DocumentEvaluation> evaluations = new ArrayList<DocumentEvaluation>();
-			List<Order> orders = new ArrayList<Order>();
+        if (invoicePaths.isEmpty()) {
+            System.out.println("Keine Rechnungen gefunden.");
+            return;
+        }
 
-			invoicePaths.forEach(i -> {
-				String ocrFile = OcrReader.readPdf(i);
-				
-				if (ocrFile.equals(null)) {
-					return;
-				}
-				
-				Order order = InvoiceMapper
-						.mapJsonToInvoice(PrivateGptRequestingProcess.getPrivateGptResponseFromPdfRequest(ocrFile));
+        Map<String, DocumentSoll> documentSollMap = getDocumentSollList();
+        List<DocumentEvaluation> evaluations = new ArrayList<>();
 
-				orders.add(order);
-				DocumentEvaluation eval = new DocumentEvaluation();
-				eval.setPath(i);
-				eval.setOrder(order);
-				evaluations.add(eval);
-			});
+        processInvoices(invoicePaths, documentSollMap, evaluations);
 
-			System.out.println(orders.toString());
+        System.out.println("Prozessende: " + LocalDateTime.now());
+    }
 
-			evaluations.forEach(eval -> {
-				/*
-				 * Auftragsnummer Bestelldatum Verkäufer Bearbeiter Lieferadresse - Name,v
-				 * Strassse, Stadt, Land Rechnungsadresse - Name, Strassse, Stadt, Land Artikel-
-				 * count list size artikel - Menge equals jeweils Artikel - Gesamtpreis jeweils
-				 * Nettobetrag Gesamtpreis Zahlungsbedingung
-				 */
-				int gesamt = 10; // es gibt 10 Vergleichspunkte:
-				int evalCorrect = 0;
-				double mindestWert = 0.7;
-				DocumentSoll soll = documentSollMap.get(eval.getPath());
+    private static List<String> getInvoicePaths(String directoryPath) {
+        List<String> invoicePaths = new ArrayList<>();
+        File directory = new File(directoryPath);
 
-				if (soll == null || soll.equals(null)) {
-					return;
-				}
+        if (directory.exists() && directory.isDirectory()) {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile()) {
+                        invoicePaths.add(file.getAbsolutePath());
+                    }
+                }
+            }
+        }
+        return invoicePaths;
+    }
 
-				Order sollOrder = InvoiceMapper.mapJsonToInvoice(soll.getSollJson().replaceAll("\\r?\\n|\\r|\\t", "").replace("\n", ""));
+    private static void processInvoices(List<String> invoicePaths, Map<String, DocumentSoll> documentSollMap, List<DocumentEvaluation> evaluations) {
+        List<Order> orders = new ArrayList<>();
 
-				// evaluation
-				if (eval.getOrder() != null) {
-					
-					if (sollOrder == null) {
-						// Fehlerfall:
-						System.out.println();
-						System.out.println("There was a error handling the order: " + eval.getOrder().getOrderNumber());
-						System.out.println();
-						return;
-					}
+        for (String path : invoicePaths) {
+            String ocrFile = OcrReader.readPdf(path);
 
-					if (sollOrder.getItems() == null || sollOrder.getItems().isEmpty() ||  SimilarityCalculationProcess.calculateSimilarity(sollOrder.getItems().toString(),
-							eval.getOrder().getItems().toString()) > mindestWert)
-						evalCorrect += 1;
+            if (ocrFile == null) {
+                continue;
+            }
 
-					if (sollOrder.getSeller() == null ||  SimilarityCalculationProcess.calculateSimilarity(sollOrder.getSeller(),
-							eval.getOrder().getSeller()) > mindestWert)
-						evalCorrect += 1;
-					
-					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getBillingAddress().toString(),
-							eval.getOrder().getBillingAddress().toString()) > mindestWert)
-						evalCorrect += 1;
-					
-					if (SimilarityCalculationProcess.calculateSimilarity(sollOrder.getDeliveryAddress().toString(),
-							eval.getOrder().getDeliveryAddress().toString()) > mindestWert)
-						evalCorrect += 1;
+            Order order = InvoiceMapper.mapJsonToInvoice(
+                PrivateGptRequestingProcess.getPrivateGptResponseFromPdfRequest(
+                    ocrFile.replaceAll("\\r?\\n|\\r|\\t", "").replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
+                )
+            );
 
-					if (sollOrder.getHandler() == null ||  SimilarityCalculationProcess.calculateSimilarity(sollOrder.getHandler(),
-							eval.getOrder().getHandler()) > mindestWert)
-						evalCorrect += 1;
+            try {
+                TimeUnit.SECONDS.sleep(15); // die Responses waren besser wenn nicht zuviele Requests aufeinmal oder nacheinander geschickt worden sind.
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
-					if (sollOrder.getPaymentTerms() == null ||  SimilarityCalculationProcess.calculateSimilarity(sollOrder.getPaymentTerms(),
-							eval.getOrder().getPaymentTerms()) > mindestWert)
-						evalCorrect += 1;
+            orders.add(order);
+            DocumentEvaluation eval = new DocumentEvaluation();
+            eval.setPath(path);
+            eval.setOrder(order);
+            evaluations.add(eval);
+        }
 
-					// Numbers
-					if (sollOrder.getOrderNumber() == null || sollOrder.getOrderNumber().equals(eval.getOrder().getOrderNumber()))
-						evalCorrect += 1;
+        System.out.println(orders.toString());
+        evaluateDocuments(evaluations, documentSollMap);
+    }
 
-					if (sollOrder.getOrderDate() == null || sollOrder.getOrderDate().equals(eval.getOrder().getOrderDate()))
-						evalCorrect += 1;
+    private static void evaluateDocuments(List<DocumentEvaluation> evaluations, Map<String, DocumentSoll> documentSollMap) {
+        final int TOTAL_POINTS = 10;
+        final double MINIMUM_SIMILARITY = 0.6;
 
-					if (sollOrder.getNetAmount() == null || sollOrder.getNetAmount() == eval.getOrder().getNetAmount())
-						evalCorrect += 1;
+        for (DocumentEvaluation eval : evaluations) {
+            int correctPoints = 0;
+            DocumentSoll soll = documentSollMap.get(eval.getPath());
 
-					if (sollOrder.getTotalAmount() == null || sollOrder.getTotalAmount() == eval.getOrder().getTotalAmount())
-						evalCorrect += 1;
+            if (soll == null) {
+                continue;
+            }
 
-					double percentage = (double) ((double) evalCorrect / (double) gesamt) * 100;
-					eval.setMistakes(gesamt - evalCorrect);
-					eval.setReader("ITEXTPDF");
-					eval.setSollJson(InvoiceMapper.writeOrderToJson(sollOrder));
-					eval.setIstJson(InvoiceMapper.writeOrderToJson(eval.getOrder()));
-					eval.setCorrectness(Double.valueOf(percentage).intValue());
+            Order sollOrder = InvoiceMapper.mapJsonToInvoice(soll.getSollJson().replaceAll("\\n", ""));
+            Order order = eval.getOrder();
 
-					insertEvaluation(eval);
-				} else {
-					eval.setCorrectness(0);
-					eval.setReader("ITEXTPDF");
-				}
-			});
+            if (order == null || sollOrder == null) {
+                handleEvaluationError(eval, sollOrder, TOTAL_POINTS);
+                continue;
+            }
 
-		}
-	}
+            if (compareItems(sollOrder, order, MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getSeller(), order.getSeller(), MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getBillingAddress().toString(), order.getBillingAddress().toString(), MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getDeliveryAddress().toString(), order.getDeliveryAddress().toString(), MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getHandler(), order.getHandler(), MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getPaymentTerms(), order.getPaymentTerms(), MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getOrderNumber(), order.getOrderNumber(), MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getOrderDate(), order.getOrderDate(), MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getNetAmount(), order.getNetAmount(), MINIMUM_SIMILARITY)) correctPoints++;
+            if (compareFields(sollOrder.getTotalAmount(), order.getTotalAmount(), MINIMUM_SIMILARITY)) correctPoints++;
 
-	private static Map<String, DocumentSoll> getDocumentSollList() {
-		Map<String, DocumentSoll> documentSollMap = new HashMap<String, DocumentSoll>();
+            double correctnessPercentage = ((double) correctPoints / TOTAL_POINTS) * 100;
+            eval.setMistakes(TOTAL_POINTS - correctPoints);
+            eval.setReader("ITEXTPDF");
+            eval.setSollJson(InvoiceMapper.writeOrderToJson(sollOrder));
+            eval.setIstJson(InvoiceMapper.writeOrderToJson(order));
+            eval.setCorrectness((int) correctnessPercentage);
 
-		try (Connection connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD);
-				Statement statement = connection.createStatement();) {
+            insertEvaluation(eval);
+        }
+    }
 
-			String sql = "SELECT * FROM Document_Soll";
-			ResultSet resultSet = statement.executeQuery(sql);
+    private static boolean compareItems(Order sollOrder, Order order, double minimumSimilarity) {
+        return sollOrder.getItems() != null && !sollOrder.getItems().isEmpty() &&
+               SimilarityCalculationProcess.calculateSimilarity(sollOrder.getItems().toString(), order.getItems().toString()) > minimumSimilarity;
+    }
 
-			// Process the result set
-			while (resultSet.next()) {
-				String path = resultSet.getString("Path");
-				String sollJson = resultSet.getString("sollJson");
-				String art = resultSet.getString("Art");
+    private static boolean compareFields(String sollField, String istField, double minimumSimilarity) {
+        return sollField != null && SimilarityCalculationProcess.calculateSimilarity(sollField, istField) > minimumSimilarity;
+    }
 
-				DocumentSoll documentSoll = new DocumentSoll(path, sollJson, art);
-				documentSollMap.put(path, documentSoll);
-			}
+    private static void handleEvaluationError(DocumentEvaluation eval, Order sollOrder, int totalPoints) {
+        eval.setCorrectness(0);
+        eval.setReader("ITEXTPDF");
+        eval.setIstJson("Fehler ist aufgetreten");
+        eval.setSollJson(sollOrder != null ? InvoiceMapper.writeOrderToJson(sollOrder) : "Fehler bei Path: " + eval.getPath());
+        eval.setMistakes(totalPoints);
 
-			// Close the resources
-			resultSet.close();
-			statement.close();
-			connection.close();
+        insertEvaluation(eval);
+    }
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return documentSollMap;
-	}
+    private static Map<String, DocumentSoll> getDocumentSollList() {
+        Map<String, DocumentSoll> documentSollMap = new HashMap<>();
 
-	private static void insertEvaluation(DocumentEvaluation evaluation) {
-		String sql = "INSERT INTO Document_evaluation (Path, sollJson, istJson, Reader, mistakes, correctness) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "SELECT * FROM Document_Soll";
 
-		try (Connection connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD);
-				PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD);
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sql)) {
 
-			preparedStatement.setString(1, evaluation.getPath());
-			preparedStatement.setString(2, evaluation.getSollJson());
-			preparedStatement.setString(3, evaluation.getIstJson());
-			preparedStatement.setString(4, evaluation.getReader());
-			preparedStatement.setInt(5, evaluation.getMistakes());
-			preparedStatement.setInt(6, evaluation.getCorrectness());
+            while (resultSet.next()) {
+                String path = resultSet.getString("Path");
+                String sollJson = resultSet.getString("sollJson");
+                String art = resultSet.getString("Art");
 
-			preparedStatement.executeUpdate();
+                DocumentSoll documentSoll = new DocumentSoll(path, sollJson, art);
+                documentSollMap.put(path, documentSoll);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();  // bei weiterführung, hier logging einbauen 
+        }
+        return documentSollMap;
+    }
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+    private static void insertEvaluation(DocumentEvaluation evaluation) {
+        String sql = "INSERT INTO Document_evaluation (Path, sollJson, istJson, Reader, mistakes, correctness) VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD);
+             PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+
+            preparedStatement.setString(1, evaluation.getPath());
+            preparedStatement.setString(2, evaluation.getSollJson());
+            preparedStatement.setString(3, evaluation.getIstJson());
+            preparedStatement.setString(4, evaluation.getReader());
+            preparedStatement.setInt(5, evaluation.getMistakes());
+            preparedStatement.setInt(6, evaluation.getCorrectness());
+
+            preparedStatement.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();  // bei weiterführung, hier logging einbauen 
+        }
+    }
 }

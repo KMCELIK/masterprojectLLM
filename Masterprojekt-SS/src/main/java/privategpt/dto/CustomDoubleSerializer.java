@@ -6,22 +6,17 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
 
-public class CustomDoubleSerializer extends JsonDeserializer<Double> {
+public class CustomDoubleSerializer extends JsonDeserializer<String> {
 
     @Override
-    public Double deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
-    	String text = p.getText();
-        text = text.replace(",", ".");
-        
-        if (text.contains(".")) {
-            String[] parts = text.split("\\.");
-            if (parts.length == 2 && parts[1].isEmpty()) {
-                // Entfernen des Punktes, wenn kein Wert nach dem Punkt ist
-                text = parts[0];
-            }
+    public String deserialize(JsonParser p, DeserializationContext ctxt)
+            throws IOException, JsonProcessingException {
+        JsonNode node = p.getCodec().readTree(p);
+        if (node.isNumber()) {
+            return node.asText();
         }
-        
-        return Double.valueOf(text);
+        return node.asText();
     }
 }

@@ -39,15 +39,18 @@ public class Order {
 
 	@JsonProperty("Nettobetrag")
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	private Double netAmount;
+	@JsonDeserialize(using = CustomDoubleSerializer.class)
+	private String netAmount;
 
 	@JsonProperty("USt19")
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	private Double vat19;
+	@JsonDeserialize(using = CustomDoubleSerializer.class)
+	private String vat19;
 
 	@JsonProperty("Gesamt")
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	private Double totalAmount;
+	@JsonDeserialize(using = CustomDoubleSerializer.class)
+	private String totalAmount;
 
 	@JsonProperty("Zahlungsbedingungen")
 	@JsonDeserialize(using = PaymentTermsDeserializer.class)
@@ -117,27 +120,27 @@ public class Order {
 		this.items = items;
 	}
 
-	public Double getNetAmount() {
+	public String getNetAmount() {
 		return netAmount;
 	}
 
-	public void setNetAmount(Double netAmount) {
+	public void setNetAmount(String netAmount) {
 		this.netAmount = netAmount;
 	}
 
-	public Double getVat19() {
+	public String getVat19() {
 		return vat19;
 	}
 
-	public void setVat19(Double vat19) {
+	public void setVat19(String vat19) {
 		this.vat19 = vat19;
 	}
 
-	public Double getTotalAmount() {
+	public String getTotalAmount() {
 		return totalAmount;
 	}
 
-	public void setTotalAmount(Double totalAmount) {
+	public void setTotalAmount(String totalAmount) {
 		this.totalAmount = totalAmount;
 	}
 
@@ -163,29 +166,9 @@ public class Order {
 				orderNumber, paymentTerms, seller, totalAmount, vat19);
 	}
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Order other = (Order) obj;
-		return Objects.equals(billingAddress, other.billingAddress)
-				&& Objects.equals(deliveryAddress, other.deliveryAddress)
-				&& Objects.equals(deliveryDate, other.deliveryDate) && Objects.equals(handler, other.handler)
-				&& Objects.equals(items, other.items)
-				&& Double.doubleToLongBits(netAmount) == Double.doubleToLongBits(other.netAmount)
-				&& Objects.equals(orderDate, other.orderDate) && Objects.equals(orderNumber, other.orderNumber)
-				&& Objects.equals(paymentTerms, other.paymentTerms) && Objects.equals(seller, other.seller)
-				&& Double.doubleToLongBits(totalAmount) == Double.doubleToLongBits(other.totalAmount)
-				&& Double.doubleToLongBits(vat19) == Double.doubleToLongBits(other.vat19);
-	}
-
 	public Order(String orderNumber, String orderDate, String seller, String handler, Address deliveryAddress,
-			Address billingAddress, String deliveryDate, List<Item> items, double netAmount, double vat19,
-			double totalAmount, String paymentTerms) {
+			Address billingAddress, String deliveryDate, List<Item> items, String netAmount, String vat19,
+			String totalAmount, String paymentTerms) {
 		super();
 		this.orderNumber = orderNumber;
 		this.orderDate = orderDate;

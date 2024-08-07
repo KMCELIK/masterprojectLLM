@@ -3,9 +3,11 @@ package privategpt.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Item {
+	
 	@JsonProperty("ArtNr")
 	private String itemNumber;
 
@@ -17,15 +19,18 @@ public class Item {
 
 	@JsonProperty("Stückpreis")
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	private Double unitPrice;
+	@JsonDeserialize(using = CustomDoubleSerializer.class)
+	private String unitPrice;
 
 	@JsonProperty("Rabatt")
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	private Double discount;
+	@JsonDeserialize(using = CustomDoubleSerializer.class)
+	private String discount;
 
 	@JsonProperty("Betrag")
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	private Double amount;
+	@JsonDeserialize(using = CustomDoubleSerializer.class)
+	private String amount;
 
 	public String getItemNumber() {
 		return itemNumber;
@@ -51,27 +56,27 @@ public class Item {
 		this.quantity = quantity;
 	}
 
-	public Double getUnitPrice() {
+	public String getUnitPrice() {
 		return unitPrice;
 	}
 
-	public void setUnitPrice(Double unitPrice) {
+	public void setUnitPrice(String unitPrice) {
 		this.unitPrice = unitPrice;
 	}
 
-	public Double getDiscount() {
+	public String getDiscount() {
 		return discount;
 	}
 
-	public void setDiscount(Double discount) {
+	public void setDiscount(String discount) {
 		this.discount = discount;
 	}
 
-	public Double getAmount() {
+	public String getAmount() {
 		return amount;
 	}
 
-	public void setAmount(Double amount) {
+	public void setAmount(String amount) {
 		this.amount = amount;
 	}
 
@@ -81,8 +86,8 @@ public class Item {
 				+ ", unitPrice=" + unitPrice + ", discount=" + discount + ", amount=" + amount + "]";
 	}
 
-	public Item(String itemNumber, String description, String quantity, double unitPrice, double discount,
-			double amount) {
+	public Item(String itemNumber, String description, String quantity, String unitPrice, String discount,
+			String amount) {
 		super();
 		this.itemNumber = itemNumber;
 		this.description = description;
